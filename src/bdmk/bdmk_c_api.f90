@@ -53,7 +53,6 @@ contains
     real(c_double) :: rintl(201)
 
     external :: vol_tree_mem
-    external :: rhsfun_bridge
 
     call c_f_procpointer(funptr, rhs_cb)
     call vol_tree_mem(ndim, ipoly, iperiod, eps, zk, boxlen, norder, &
@@ -81,7 +80,6 @@ contains
     type(c_funptr), value :: funptr
 
     external :: vol_tree_build
-    external :: rhsfun_bridge
 
     call c_f_procpointer(funptr, rhs_cb)
     call vol_tree_build(ndim, ipoly, iperiod, eps, zk, boxlen, norder, &
