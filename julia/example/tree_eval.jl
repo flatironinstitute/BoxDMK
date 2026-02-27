@@ -11,7 +11,7 @@ function main()
     opts = BDMKOptions(eps=1e-6, norder=8)
 
     @info "Running BoxDMK..."
-    tree, res = BoxDMK.run(prob; compute=:potential, opts=opts)
+    tree, res = solve_problem(prob; compute=:potential, opts=opts)
 
     @info "Evaluating targets..."
     targets = rand(3, 20) .- 0.5

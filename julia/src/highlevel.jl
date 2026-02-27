@@ -2,7 +2,7 @@
 
 export BDMKProblem, BDMKOptions, BDMKTree, BDMKResult
 export YukawaProblem, LaplaceProblem, SqrtLaplaceProblem
-export build_tree, solve, evaluate_targets, run
+export build_tree, solve, evaluate_targets, solve_problem
 
 """
     BDMKProblem(; density, nd=1, ndim=3, ikernel=1, beta=1.0, boxlen=1.18,
@@ -356,8 +356,15 @@ function evaluate_targets(problem::BDMKProblem, tree::BDMKTree, targets; compute
     return solve(problem, tree; compute=compute, targets=targets, eps=eps)
 end
 
-function run(problem::BDMKProblem; targets=nothing, compute=:potential, opts=BDMKOptions())
+"""
+    solve_problem(problem; targets=nothing, compute=:potential, opts=BDMKOptions())
+
+One-call workflow: build tree and evaluate requested outputs.
+"""
+function solve_problem(problem::BDMKProblem; targets=nothing, compute=:potential, opts=BDMKOptions())
+    @info "Building tree..."
     tree = build_tree(problem, opts)
+    @info "Solving problem..."
     result = solve(problem, tree; compute=compute, targets=targets, eps=opts.eps)
     return tree, result
 end

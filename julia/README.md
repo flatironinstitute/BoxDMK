@@ -99,7 +99,7 @@ High-level types/functions are implemented in `julia/src/highlevel.jl`:
 - `build_tree`
 - `solve`
 - `evaluate_targets`
-- `run`
+- `solve_problem`
 
 ### `BDMKProblem` parameters
 
@@ -137,7 +137,7 @@ The constructor normalizes key entries in `ipars`:
 - `tree = build_tree(problem, opts=BDMKOptions())`: performs the low-level two-stage tree build (`vol_tree_mem!`, then `vol_tree_build!`) and returns `BDMKTree`.
 - `result = solve(problem, tree; compute=:potential, targets=nothing, eps=1e-6)`: evaluates on tree nodes, and optionally on target points.
 - `result = evaluate_targets(problem, tree, targets; compute=:potential, eps=1e-6)`: convenience wrapper around `solve(...; targets=...)`.
-- `(tree, result) = run(problem; targets=nothing, compute=:potential, opts=BDMKOptions())`: one-call build + solve.
+- `(tree, result) = solve_problem(problem; targets=nothing, compute=:potential, opts=BDMKOptions())`: one-call build + solve.
 
 `compute` accepts:
 
@@ -176,7 +176,7 @@ end
 prob = BDMKProblem(density=density, nd=1, ndim=3, ikernel=1)
 opts = BDMKOptions(eps=1e-6, norder=8)
 
-tree, res = BoxDMK.run(prob; compute=:potential, opts=opts)
+tree, res = solve_problem(prob; compute=:potential, opts=opts)
 
 targets = rand(3, 20) .- 0.5
 tres = evaluate_targets(prob, tree, targets; compute=:potential, eps=opts.eps)

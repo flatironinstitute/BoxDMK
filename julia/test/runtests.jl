@@ -97,7 +97,7 @@ end
     @test isdefined(BoxDMK, :build_tree)
     @test isdefined(BoxDMK, :solve)
     @test isdefined(BoxDMK, :evaluate_targets)
-    @test isdefined(BoxDMK, :run)
+    @test isdefined(BoxDMK, :solve_problem)
 end
 
 @testset "problem-constructors" begin
@@ -411,7 +411,7 @@ end
     @test tres.pote !== nothing
     @test size(tres.pote) == (1, size(targets, 2))
 
-    tree2, runres = BoxDMK.run(problem; targets=targets, compute=:potential, opts=opts)
+    tree2, runres = solve_problem(problem; targets=targets, compute=:potential, opts=opts)
     @test tree2.nboxes == tree.nboxes
     @test size(runres.pote) == (1, size(targets, 2))
 
