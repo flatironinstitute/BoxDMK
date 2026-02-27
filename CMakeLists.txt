@@ -50,6 +50,7 @@ set_target_properties(boxdmk PROPERTIES
 )
 
 add_executable(int2-bdmk test/bdmk/testbdmk.f ${BOXDMK_CORE_SOURCES})
+add_executable(bench-fortran-same-problem benchmark/bench_fortran_same_problem.f90)
 
 # Match the current Makefile tuning for GNU/Intel compilers.
 target_compile_options(boxdmk PRIVATE
@@ -59,6 +60,12 @@ target_compile_options(boxdmk PRIVATE
 )
 
 target_compile_options(int2-bdmk PRIVATE
+  $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-O3;-std=legacy;-funroll-loops;-march=native>
+  $<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-O3;-funroll-loops>
+  $<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-O3;-funroll-loops>
+)
+
+target_compile_options(bench-fortran-same-problem PRIVATE
   $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-O3;-std=legacy;-funroll-loops;-march=native>
   $<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-O3;-funroll-loops>
   $<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-O3;-funroll-loops>
@@ -87,12 +94,14 @@ endif()
 
 target_link_libraries(boxdmk PRIVATE ${BLAS_LIBRARIES})
 target_link_libraries(int2-bdmk PRIVATE ${BLAS_LIBRARIES})
+target_link_libraries(bench-fortran-same-problem PRIVATE boxdmk ${BLAS_LIBRARIES})
 
 if(BOXDMK_ENABLE_OPENMP)
   find_package(OpenMP QUIET COMPONENTS Fortran)
   if(OpenMP_Fortran_FOUND)
     target_link_libraries(boxdmk PRIVATE OpenMP::OpenMP_Fortran)
     target_link_libraries(int2-bdmk PRIVATE OpenMP::OpenMP_Fortran)
+    target_link_libraries(bench-fortran-same-problem PRIVATE OpenMP::OpenMP_Fortran)
   endif()
 endif()
 
