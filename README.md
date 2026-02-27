@@ -1,6 +1,10 @@
 # boxdmk
 box dmk by shidong
 
+## Documentation
+
+- Julia low-level interface: `docs/julia-interface.md`
+
 ## Build and Test (Make)
 
 The `all` target compiles and runs the test program (`./int2-bdmk`).
@@ -42,4 +46,21 @@ Optional MKL support (if available in your environment):
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBOXDMK_USE_MKL=ON
 cmake --build build -j
 ctest --test-dir build --output-on-failure
+```
+
+## Julia Interface
+
+Build the shared library:
+
+```bash
+module purge
+module load gcc cmake lib/openblas
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+Run Julia smoke tests:
+
+```bash
+julia --project=julia julia/test/runtests.jl
 ```
