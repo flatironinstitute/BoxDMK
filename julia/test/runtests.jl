@@ -89,6 +89,14 @@ end
     @test isdefined(BoxDMK, :vol_tree_mem!)
     @test isdefined(BoxDMK, :vol_tree_build!)
     @test isdefined(BoxDMK, :bdmk!)
+    @test isdefined(BoxDMK, :BDMKProblem)
+    @test isdefined(BoxDMK, :BDMKOptions)
+    @test isdefined(BoxDMK, :BDMKTree)
+    @test isdefined(BoxDMK, :BDMKResult)
+    @test isdefined(BoxDMK, :build_tree)
+    @test isdefined(BoxDMK, :solve)
+    @test isdefined(BoxDMK, :evaluate_targets)
+    @test isdefined(BoxDMK, :run)
 end
 
 @testset "integration" begin
@@ -319,4 +327,94 @@ end
     @test all(isfinite, tottimeinfo)
     @test isfinite(perr)
     @test perr < 1e-5
+end
+
+@testset "highlevel-api" begin
+    rsig = 5e-2
+    ndim = 2
+    nd = 1
+    rsign = rsig^(ndim / 2)
+
+    dpars = zeros(Float64, 1000)
+    dpars[1] = 0.1
+    dpars[2] = -0.1
+    dpars[3] = 0.0
+    dpars[4] = rsig
+    dpars[5] = 1 / pi / rsign
+    dpars[201] = 1.0
+
+    ipars = fill(Cint(0), 256)
+    ipars[3] = 1
+    ipars[5] = 0
+
+    function density_highlevel(x::Vector{Float64}, problem::BDMKProblem)
+        ng = Int(problem.ipars[3])
+        fi = 0.0
+        for i in 1:ng
+            idp = (i - 1) * 5
+            rr = 0.0
+            for k in 1:problem.ndim
+                rr += (x[k] - problem.dpars[idp + k])^2
+            end
+            sigma = problem.dpars[idp + 4]
+            strength = problem.dpars[idp + 5]
+            fi += strength * exp(-rr / sigma) * (-2 * problem.ndim + 4 * rr / sigma) / sigma
+        end
+        return [fi]
+    end
+
+    problem = BDMKProblem(
+        density=density_highlevel,
+        nd=1,
+        ndim=ndim,
+        ikernel=1,
+        beta=1.0,
+        boxlen=1.18,
+        dpars=dpars,
+        zpars=zeros(ComplexF64, 16),
+        ipars=ipars,
+    )
+    opts = BDMKOptions(eps=1e-2, norder=2, ipoly=0, iptype=2, eta=0.0, epstree_factor=500.0)
+
+    tree = build_tree(problem, opts)
+    @test tree.nboxes > 0
+    @test tree.nlevels >= 0
+    @test tree.npbox == opts.norder^problem.ndim
+
+    result = solve(problem, tree; compute=:potential, eps=opts.eps)
+    @test size(result.pot) == (1, tree.npbox, tree.nboxes)
+    @test result.pote === nothing
+
+    Random.seed!(1234)
+    targets = rand(problem.ndim, 4) .- 0.5
+    tres = evaluate_targets(problem, tree, targets; compute=:potential, eps=opts.eps)
+    @test tres.pote !== nothing
+    @test size(tres.pote) == (1, size(targets, 2))
+
+    tree2, runres = BoxDMK.run(problem; targets=targets, compute=:potential, opts=opts)
+    @test tree2.nboxes == tree.nboxes
+    @test size(runres.pote) == (1, size(targets, 2))
+
+    pot_ll = zeros(Float64, problem.nd * tree.npbox * tree.nboxes)
+    grad_ll = zeros(Float64, 1)
+    hess_ll = zeros(Float64, 1)
+    ntarg = Ref{Cint}(1)
+    targs = zeros(Float64, problem.ndim)
+    ifpghtarg = Ref{Cint}(0)
+    pote_ll = zeros(Float64, 1)
+    grade_ll = zeros(Float64, 1)
+    hesse_ll = zeros(Float64, 1)
+    timeinfo = zeros(Float64, 20)
+
+    bdmk!(
+        Ref{Cint}(problem.nd), Ref{Cint}(problem.ndim), Ref{Cdouble}(opts.eps), Ref{Cint}(problem.ikernel),
+        Ref{Cdouble}(problem.beta), Ref{Cint}(opts.ipoly), Ref{Cint}(tree.norder), Ref{Cint}(tree.npbox),
+        Ref{Cint}(tree.nboxes), Ref{Cint}(tree.nlevels), Ref{Cint}(tree.ltree), tree.itree, tree.iptr,
+        tree.centers, tree.boxsize, tree.fvals, Ref{Cint}(1), pot_ll, grad_ll, hess_ll,
+        ntarg, targs, ifpghtarg, pote_ll, grade_ll, hesse_ll, timeinfo
+    )
+
+    pot_ll_shaped = reshape(pot_ll, 1, tree.npbox, tree.nboxes)
+    rel = norm(vec(result.pot .- pot_ll_shaped)) / norm(vec(pot_ll_shaped))
+    @test rel < 1e-12
 end
