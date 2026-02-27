@@ -1,8 +1,26 @@
 # High-level Julia interface on top of low-level ccall wrappers.
 
 export BDMKProblem, BDMKOptions, BDMKTree, BDMKResult
+export YukawaProblem, LaplaceProblem, SqrtLaplaceProblem
 export build_tree, solve, evaluate_targets, run
 
+"""
+    BDMKProblem(; density, nd=1, ndim=3, ikernel=1, beta=1.0, boxlen=1.18,
+                dpars=zeros(Float64,1000), zpars=zeros(ComplexF64,16), ipars=fill(Cint(0),256))
+
+Problem definition for BDMK solves.
+
+Parameters:
+- `density`: Julia callback `density(x, problem)` used to fill source values at tree nodes.
+- `nd`: number of output components in the field/source value.
+- `ndim`: spatial dimension (`1`, `2`, or `3`).
+- `ikernel`: kernel selector (`0`: Yukawa, `1`: Laplace, `2`: square-root Laplace).
+- `beta`: kernel parameter used by low-level solver.
+- `boxlen`: side length of the computational box.
+- `dpars`: real parameter buffer passed to low-level code/callback.
+- `zpars`: complex parameter buffer passed to low-level code/callback.
+- `ipars`: integer parameter buffer passed to low-level code/callback.
+"""
 struct BDMKProblem
     nd::Int
     ndim::Int
@@ -37,6 +55,50 @@ function BDMKProblem(; density::Function,
         density, copy(dpars), copy(zpars), ipars2)
 end
 
+"""
+    YukawaProblem(; kwargs...)
+
+Shorthand for `BDMKProblem(...; ikernel=0, ...)`.
+"""
+function YukawaProblem(; kwargs...)
+    return BDMKProblem(; ikernel=0, kwargs...)
+end
+
+"""
+    LaplaceProblem(; kwargs...)
+
+Shorthand for `BDMKProblem(...; ikernel=1, ...)`.
+"""
+function LaplaceProblem(; kwargs...)
+    return BDMKProblem(; ikernel=1, kwargs...)
+end
+
+"""
+    SqrtLaplaceProblem(; kwargs...)
+
+Shorthand for `BDMKProblem(...; ikernel=2, ...)`.
+"""
+function SqrtLaplaceProblem(; kwargs...)
+    return BDMKProblem(; ikernel=2, kwargs...)
+end
+
+"""
+    BDMKOptions(; eps=1e-6, norder=16, ipoly=0, iptype=2, eta=0.0,
+                epstree_factor=500.0, ifnewtree=0, iperiod=0, zk=30+0im)
+
+Options controlling tree construction and solver evaluation.
+
+Parameters:
+- `eps`: solve tolerance used in `bdmk!`.
+- `norder`: interpolation order per dimension (`npbox = norder^ndim`).
+- `ipoly`: interpolation polynomial flag for low-level tree routines.
+- `iptype`: point-type flag for low-level tree routines.
+- `eta`: tuning parameter forwarded to low-level tree routines.
+- `epstree_factor`: scale factor for tree build tolerance (`eps_tree = eps * epstree_factor`).
+- `ifnewtree`: low-level tree build mode flag.
+- `iperiod`: periodicity flag.
+- `zk`: complex kernel parameter forwarded to tree routines.
+"""
 Base.@kwdef struct BDMKOptions
     eps::Float64 = 1e-6
     norder::Int = 16
@@ -49,6 +111,9 @@ Base.@kwdef struct BDMKOptions
     zk::ComplexF64 = 30.0 + 0.0im
 end
 
+"""
+Container holding the built tree and source-node arrays used by `bdmk!`.
+"""
 struct BDMKTree
     nd::Int
     ndim::Int
@@ -65,6 +130,9 @@ struct BDMKTree
     rintl::Vector{Float64}
 end
 
+"""
+Container of node/target outputs returned by `solve` and `evaluate_targets`.
+"""
 struct BDMKResult
     pot
     grad
@@ -118,8 +186,12 @@ function _hl_density_trampoline(nd::Cint, xyz::Ptr{Cdouble}, dpars::Ptr{Cdouble}
     return
 end
 
-const _HL_DENSITY_CFUN = @cfunction(_hl_density_trampoline, Cvoid,
-    (Cint, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{ComplexF64}, Ptr{Cint}, Ptr{Cdouble}))
+const _HL_DENSITY_CFUN = Ref{Ptr{Cvoid}}(C_NULL)
+
+function __init__()
+    _HL_DENSITY_CFUN[] = @cfunction(_hl_density_trampoline, Cvoid,
+        (Cint, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{ComplexF64}, Ptr{Cint}, Ptr{Cdouble}))
+end
 
 function _compute_flag(compute)
     c = Symbol(compute)
@@ -167,7 +239,7 @@ function build_tree(problem::BDMKProblem, opts::BDMKOptions=BDMKOptions())
 
     _HL_CALLBACK_CONTEXT[] = problem
     vol_tree_mem!(ndim, ipoly, iperiod, eps_tree, zk, boxlen, norder, iptype, eta,
-        _HL_DENSITY_CFUN, nd, problem.dpars, problem.zpars, ipars, ifnewtree,
+        _HL_DENSITY_CFUN[], nd, problem.dpars, problem.zpars, ipars, ifnewtree,
         nboxes, nlevels, ltree, rintl)
 
     npbox = Int(opts.norder)^Int(problem.ndim)
@@ -179,7 +251,7 @@ function build_tree(problem::BDMKProblem, opts::BDMKOptions=BDMKOptions())
 
     _HL_CALLBACK_CONTEXT[] = problem
     vol_tree_build!(ndim, ipoly, iperiod, eps_tree, zk, boxlen, norder, iptype, eta,
-        _HL_DENSITY_CFUN, nd, problem.dpars, problem.zpars, ipars, rintl,
+        _HL_DENSITY_CFUN[], nd, problem.dpars, problem.zpars, ipars, rintl,
         nboxes, nlevels, ltree, itree, iptr, centers, boxsize, fvals)
 
     return BDMKTree(problem.nd, problem.ndim, opts.norder, npbox, Int(nboxes[]), Int(nlevels[]),

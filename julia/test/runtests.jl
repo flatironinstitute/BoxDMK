@@ -1,9 +1,7 @@
+using BoxDMK
 using Test
 using Random
 using LinearAlgebra
-
-include("../src/BoxDMK.jl")
-using .BoxDMK
 
 function rhs_cb_simple(nd::Cint, xyz::Ptr{Cdouble}, dpars::Ptr{Cdouble}, zpars::Ptr{ComplexF64}, ipars::Ptr{Cint}, f::Ptr{Cdouble})::Cvoid
     ndim = unsafe_load(ipars, 1)
@@ -93,10 +91,32 @@ end
     @test isdefined(BoxDMK, :BDMKOptions)
     @test isdefined(BoxDMK, :BDMKTree)
     @test isdefined(BoxDMK, :BDMKResult)
+    @test isdefined(BoxDMK, :YukawaProblem)
+    @test isdefined(BoxDMK, :LaplaceProblem)
+    @test isdefined(BoxDMK, :SqrtLaplaceProblem)
     @test isdefined(BoxDMK, :build_tree)
     @test isdefined(BoxDMK, :solve)
     @test isdefined(BoxDMK, :evaluate_targets)
     @test isdefined(BoxDMK, :run)
+end
+
+@testset "problem-constructors" begin
+    density(x, problem) = 1.0
+
+    y = YukawaProblem(density=density, ndim=2, nd=1, beta=2.5)
+    l = LaplaceProblem(density=density, ndim=3, nd=1)
+    s = SqrtLaplaceProblem(density=density, ndim=2, nd=2, beta=0.75)
+
+    @test y.ikernel == 0
+    @test l.ikernel == 1
+    @test s.ikernel == 2
+
+    @test y.ipars[2] == Cint(0)
+    @test l.ipars[2] == Cint(1)
+    @test s.ipars[2] == Cint(2)
+
+    @test y.beta == 2.5
+    @test s.beta == 0.75
 end
 
 @testset "integration" begin
