@@ -42,3 +42,7 @@ build/
 
 # debug information files
 *.dwo
+
+Manifest.toml
+fort.13
+l3dbox.txt
