@@ -1,2 +1,45 @@
 # boxdmk
 box dmk by shidong
+
+## Build and Test (Make)
+
+The `all` target compiles and runs the test program (`./int2-bdmk`).
+
+```bash
+make clean
+make HOST=linux-gfortran FEND='-lopenblas' all
+```
+
+Notes:
+- Default `HOST=linux-ifort` expects `ifx` and Intel MKL.
+- If MKL is installed, you can use:
+
+```bash
+make clean
+make HOST=linux-gfortran all
+```
+
+## Build and Test (CMake)
+
+Load dependencies with environment modules:
+
+```bash
+module purge
+module load gcc cmake lib/openblas
+```
+
+Configure and build (default: OpenBLAS):
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+Optional MKL support (if available in your environment):
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBOXDMK_USE_MKL=ON
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
