@@ -1,5 +1,6 @@
-# boxdmk
-box dmk by shidong
+# Box DMK
+
+Box DMK is a tool for evaluating volume integrals of Yukawa, Laplace, and square-Laplace functions. It has a Fortran interface developed by Shidong and a Julia wrapper created by Xuanzhao.
 
 ## Documentation
 
